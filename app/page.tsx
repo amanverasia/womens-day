@@ -27,6 +27,7 @@ type ConfettiPiece = {
   duration: number;
   delay: number;
   drift: number;
+  rise: number;
   rotate: number;
   color: string;
 };
@@ -412,23 +413,25 @@ export default function Home() {
     if (prefersReducedMotion) return;
 
     const burst = confettiBurstRef.current++;
-    const pieces = Array.from({ length: 30 }, (_, index) => ({
+    const pieces = Array.from({ length: 32 }, (_, index) => ({
       id: burst * 100 + index,
       burst,
       left: 10 + Math.random() * 80,
-      size: 6 + Math.random() * 8,
-      duration: 1300 + Math.random() * 700,
-      delay: Math.random() * 220,
-      drift: (Math.random() - 0.5) * 240,
-      rotate: 220 + Math.random() * 360,
+      size: 5 + Math.random() * 7,
+      duration: 2400 + Math.random() * 1300,
+      delay: Math.random() * 260,
+      drift: (Math.random() - 0.5) * 180,
+      rise: 72 + Math.random() * 28,
+      rotate: 260 + Math.random() * 360,
       color: confettiPalette[Math.floor(Math.random() * confettiPalette.length)],
     }));
 
     setConfettiPieces((previous) => [...previous, ...pieces]);
 
+    const cleanupAfter = Math.max(...pieces.map((piece) => piece.duration + piece.delay)) + 300;
     window.setTimeout(() => {
       setConfettiPieces((previous) => previous.filter((piece) => piece.burst !== burst));
-    }, 2300);
+    }, cleanupAfter);
   }, [prefersReducedMotion]);
 
   const copyLink = useCallback(async () => {
@@ -629,7 +632,7 @@ export default function Home() {
         {confettiPieces.map((piece) => (
           <span
             key={piece.id}
-            className="confetti-bit absolute -top-8 rounded-sm"
+            className="confetti-bit absolute -bottom-6 rounded-sm"
             style={
               {
                 left: `${piece.left}%`,
@@ -637,6 +640,7 @@ export default function Home() {
                 height: `${Math.max(4, piece.size * 0.56)}px`,
                 backgroundColor: piece.color,
                 "--confetti-drift": `${piece.drift}px`,
+                "--confetti-rise": `${piece.rise}vh`,
                 "--confetti-rotate": `${piece.rotate}deg`,
                 "--confetti-duration": `${piece.duration}ms`,
                 animationDelay: `${piece.delay}ms`,

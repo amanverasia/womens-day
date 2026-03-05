@@ -37,24 +37,30 @@ body {
 
 .confetti-bit {
   opacity: 0;
-  transform: translate3d(0, -18px, 0) rotate(0deg);
+  transform: translate3d(0, 0, 0) rotate(0deg) scale(0.9);
   will-change: transform, opacity;
-  animation-name: confetti-fall;
-  animation-duration: var(--confetti-duration, 1500ms);
-  animation-timing-function: cubic-bezier(0.2, 0.68, 0.16, 0.98);
+  animation-name: confetti-rise;
+  animation-duration: var(--confetti-duration, 2800ms);
+  animation-timing-function: cubic-bezier(0.17, 0.79, 0.28, 0.99);
   animation-fill-mode: forwards;
 }
 
-@keyframes confetti-fall {
+@keyframes confetti-rise {
   0% {
     opacity: 0;
-    transform: translate3d(0, -18px, 0) rotate(0deg);
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.9);
   }
-  12% {
+  10% {
     opacity: 1;
+  }
+  45% {
+    opacity: 0.95;
+    transform: translate3d(calc(var(--confetti-drift, 0px) * 0.38), calc(-1 * var(--confetti-rise, 78vh) * 0.55), 0)
+      rotate(calc(var(--confetti-rotate, 280deg) * 0.52));
   }
   100% {
     opacity: 0;
-    transform: translate3d(var(--confetti-drift, 0px), 95vh, 0) rotate(var(--confetti-rotate, 280deg));
+    transform: translate3d(var(--confetti-drift, 0px), calc(-1 * var(--confetti-rise, 78vh)), 0)
+      rotate(var(--confetti-rotate, 280deg));
   }
 }
