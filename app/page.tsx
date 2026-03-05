@@ -383,6 +383,7 @@ export default function Home() {
   const [posterStatus, setPosterStatus] = useState<"idle" | "rendering" | "done" | "error">("idle");
   const [activeTheme, setActiveTheme] = useState<ThemeKey>("midnight");
   const [recipientName, setRecipientName] = useState<string | null>(null);
+  const [recipientInput, setRecipientInput] = useState("");
   const [flippedCards, setFlippedCards] = useState<Record<number, boolean>>({});
   const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -394,6 +395,17 @@ export default function Home() {
 
   const toggleCard = useCallback((index: number) => {
     setFlippedCards((previous) => ({ ...previous, [index]: !previous[index] }));
+  }, []);
+
+  const handleRecipientInput = useCallback((value: string) => {
+    const parsed = sanitizeRecipientName(value);
+    setRecipientInput(parsed ?? "");
+    setRecipientName(parsed);
+  }, []);
+
+  const clearRecipient = useCallback(() => {
+    setRecipientInput("");
+    setRecipientName(null);
   }, []);
 
   const launchConfetti = useCallback(() => {
@@ -420,12 +432,20 @@ export default function Home() {
   }, [prefersReducedMotion]);
 
   const copyLink = useCallback(async () => {
+    const shareUrl = new URL(window.location.href);
+    if (recipientName) {
+      shareUrl.searchParams.set("to", recipientName);
+    } else {
+      shareUrl.searchParams.delete("to");
+    }
+
     const shareText =
-      "Happy International Women’s Day 💜✨ A little celebration page for all the amazing women out there." +
-      `\n\n${window.location.href}`;
+      recipientName
+        ? `Happy International Women’s Day 💜✨ A little celebration page dedicated to ${recipientName}.`
+        : "Happy International Women’s Day 💜✨ A little celebration page for all the amazing women out there.";
 
     try {
-      await navigator.clipboard.writeText(shareText);
+      await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl.toString()}`);
       setCopyStatus("copied");
       launchConfetti();
     } catch {
@@ -433,7 +453,7 @@ export default function Home() {
     }
 
     window.setTimeout(() => setCopyStatus("idle"), 2500);
-  }, [launchConfetti]);
+  }, [launchConfetti, recipientName]);
 
   const downloadPoster = useCallback(async () => {
     if (posterStatus === "rendering") return;
@@ -541,7 +561,9 @@ export default function Home() {
 
     const syncRecipient = () => {
       const raw = new URLSearchParams(window.location.search).get("to");
-      setRecipientName(sanitizeRecipientName(raw));
+      const parsed = sanitizeRecipientName(raw);
+      setRecipientName(parsed);
+      setRecipientInput(parsed ?? "");
     };
 
     syncRecipient();
@@ -551,7 +573,9 @@ export default function Home() {
 
   const statusMessage =
     copyStatus === "copied"
-      ? "Copied to clipboard."
+      ? recipientName
+        ? `Copied personalized link for ${recipientName}.`
+        : "Copied to clipboard."
       : copyStatus === "error"
         ? "Clipboard access failed. Please copy manually."
         : posterStatus === "done"
@@ -692,6 +716,35 @@ export default function Home() {
                 </button>
               );
             })}
+          </motion.div>
+
+          <motion.div
+            className="mt-4 flex flex-wrap items-center gap-2"
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+            animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.45, delay: 0.33 }}
+          >
+            <label htmlFor="recipient-input" className="text-xs uppercase tracking-[0.16em] text-slate-300">
+              Dedicate to
+            </label>
+            <input
+              id="recipient-input"
+              type="text"
+              value={recipientInput}
+              onChange={(event) => handleRecipientInput(event.target.value)}
+              placeholder="Name (optional)"
+              maxLength={42}
+              className={`w-full min-w-[220px] grow rounded-full border border-white/25 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:w-auto sm:grow-0 ${currentTheme.focusRing}`}
+            />
+            {recipientInput && (
+              <button
+                type="button"
+                onClick={clearRecipient}
+                className={`rounded-full border border-white/25 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${currentTheme.focusRing}`}
+              >
+                Clear
+              </button>
+            )}
           </motion.div>
 
           <motion.div
