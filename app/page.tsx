@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Note = {
@@ -123,32 +124,24 @@ function FloatingBits({ reducedMotion }: { reducedMotion: boolean }) {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       {floatingBits.map((item, index) => (
-        <motion.span
+        <span
           key={`${item.emoji}-${index}`}
-          className="absolute text-2xl opacity-60 sm:text-3xl"
-          style={{ top: item.top, left: item.left }}
-          animate={
-            reducedMotion
-              ? undefined
-              : {
-                  y: [0, -14, 0],
-                  x: [0, 8, 0],
-                  rotate: [0, 6, -4, 0],
-                }
-          }
-          transition={
-            reducedMotion
-              ? undefined
-              : {
-                  duration: 8 + index * 0.8,
-                  delay: item.delay,
-                  ease: "easeInOut",
-                  repeat: Number.POSITIVE_INFINITY,
-                }
+          className="floating-bit absolute text-2xl opacity-60 sm:text-3xl"
+          style={
+            {
+              top: item.top,
+              left: item.left,
+              "--float-x": `${8 + (index % 3) * 2}px`,
+              "--float-y": `${12 + (index % 4) * 2}px`,
+              "--float-rotate": `${5 + (index % 2) * 3}deg`,
+              "--float-duration": `${8 + index * 0.8}s`,
+              animationDelay: `${-item.delay}s`,
+              animationPlayState: reducedMotion ? "paused" : "running",
+            } as CSSProperties
           }
         >
           {item.emoji}
-        </motion.span>
+        </span>
       ))}
     </div>
   );

@@ -14,3 +14,23 @@ body {
 body {
   @apply bg-slate-950 text-slate-100 antialiased;
 }
+
+.floating-bit {
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  animation-name: float-drift;
+  animation-duration: var(--float-duration, 10s);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes float-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(var(--float-x, 8px), calc(-1 * var(--float-y, 14px)), 0)
+      rotate(var(--float-rotate, 6deg));
+  }
+}
