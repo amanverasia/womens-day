@@ -667,7 +667,7 @@ export default function Home() {
             animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
             transition={{ duration: prefersReducedMotion ? 0 : 0.45, delay: 0.16 }}
           >
-            Happy Women&apos;s Day 💜
+            {recipientName ? `Happy Women's Day ${recipientName} 💜` : "Happy Women's Day 💜"}
           </motion.h1>
           {recipientName && (
             <motion.p
@@ -676,7 +676,7 @@ export default function Home() {
               animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: prefersReducedMotion ? 0 : 0.42, delay: 0.2 }}
             >
-              For {recipientName} - and every incredible woman out there.
+              A special dedication to {recipientName} and every incredible woman out there.
             </motion.p>
           )}
           <motion.p
