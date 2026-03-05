@@ -8,6 +8,7 @@ type Note = {
   emoji: string;
   title: string;
   body: string;
+  quote: string;
 };
 
 type ThemeKey = "midnight" | "sunrise" | "ocean";
@@ -18,19 +19,91 @@ type TimelineStep = {
   body: string;
 };
 
+type ConfettiPiece = {
+  id: number;
+  burst: number;
+  left: number;
+  size: number;
+  duration: number;
+  delay: number;
+  drift: number;
+  rotate: number;
+  color: string;
+};
+
 const notes: Note[] = [
-  { emoji: "🫶", title: "To courage", body: "For showing up even when it's hard." },
-  { emoji: "✨", title: "To brilliance", body: "For learning, building, and lighting the way." },
-  { emoji: "🌸", title: "To kindness", body: "For making people feel seen." },
-  { emoji: "💜", title: "To leadership", body: "For lifting others as you rise." },
-  { emoji: "🌈", title: "To joy", body: "For choosing joy and sharing it." },
-  { emoji: "⭐", title: "To resilience", body: "For turning setbacks into comebacks." },
-  { emoji: "🔥", title: "To ambition", body: "For daring to want more and going for it." },
-  { emoji: "🎯", title: "To focus", body: "For getting things done with style." },
-  { emoji: "🤝", title: "To community", body: "For building spaces where others can grow." },
-  { emoji: "🧠", title: "To curiosity", body: "For asking better questions every day." },
-  { emoji: "🚀", title: "To progress", body: "For moving the world forward, quietly or loudly." },
-  { emoji: "🌻", title: "To hope", body: "For believing in tomorrow and making it better." },
+  {
+    emoji: "🫶",
+    title: "To courage",
+    body: "For showing up even when it's hard.",
+    quote: "Courage doesn't need noise. It just needs one honest step.",
+  },
+  {
+    emoji: "✨",
+    title: "To brilliance",
+    body: "For learning, building, and lighting the way.",
+    quote: "Brilliance grows when curiosity meets consistency.",
+  },
+  {
+    emoji: "🌸",
+    title: "To kindness",
+    body: "For making people feel seen.",
+    quote: "Kindness is a quiet superpower with lasting impact.",
+  },
+  {
+    emoji: "💜",
+    title: "To leadership",
+    body: "For lifting others as you rise.",
+    quote: "Real leadership creates more leaders, not followers.",
+  },
+  {
+    emoji: "🌈",
+    title: "To joy",
+    body: "For choosing joy and sharing it.",
+    quote: "Joy is a brave choice, especially on hard days.",
+  },
+  {
+    emoji: "⭐",
+    title: "To resilience",
+    body: "For turning setbacks into comebacks.",
+    quote: "Resilience is a thousand tiny restarts.",
+  },
+  {
+    emoji: "🔥",
+    title: "To ambition",
+    body: "For daring to want more and going for it.",
+    quote: "Ambition is vision plus the courage to begin.",
+  },
+  {
+    emoji: "🎯",
+    title: "To focus",
+    body: "For getting things done with style.",
+    quote: "Focus turns effort into meaningful momentum.",
+  },
+  {
+    emoji: "🤝",
+    title: "To community",
+    body: "For building spaces where others can grow.",
+    quote: "Community is built by people who make room for others.",
+  },
+  {
+    emoji: "🧠",
+    title: "To curiosity",
+    body: "For asking better questions every day.",
+    quote: "Curiosity is how tomorrow gets invented.",
+  },
+  {
+    emoji: "🚀",
+    title: "To progress",
+    body: "For moving the world forward, quietly or loudly.",
+    quote: "Progress is often quiet, then suddenly undeniable.",
+  },
+  {
+    emoji: "🌻",
+    title: "To hope",
+    body: "For believing in tomorrow and making it better.",
+    quote: "Hope is not waiting. Hope is building.",
+  },
 ];
 
 const timelineSteps: TimelineStep[] = [
@@ -49,6 +122,20 @@ const floatingBits = [
   { emoji: "🌻", top: "68%", left: "70%", delay: 0.2 },
   { emoji: "🚀", top: "78%", left: "40%", delay: 0.9 },
 ];
+
+const constellationPairs = [
+  [0, 3],
+  [3, 5],
+  [5, 7],
+  [7, 6],
+  [6, 2],
+  [2, 1],
+  [1, 4],
+  [4, 0],
+  [2, 4],
+] as const;
+
+const confettiPalette = ["#f9a8d4", "#c4b5fd", "#67e8f9", "#fde68a", "#fca5a5", "#86efac"];
 
 const themeOrder: ThemeKey[] = ["midnight", "sunrise", "ocean"];
 
@@ -123,6 +210,45 @@ function usePrefersReducedMotion() {
 function FloatingBits({ reducedMotion }: { reducedMotion: boolean }) {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <svg className="absolute inset-0 h-full w-full opacity-40" viewBox="0 0 100 100" preserveAspectRatio="none">
+        {constellationPairs.map(([from, to], index) => {
+          const fromBit = floatingBits[from];
+          const toBit = floatingBits[to];
+
+          return (
+            <motion.line
+              key={`${from}-${to}`}
+              x1={fromBit.left}
+              y1={fromBit.top}
+              x2={toBit.left}
+              y2={toBit.top}
+              stroke="rgba(226,232,240,0.45)"
+              strokeWidth="0.35"
+              strokeLinecap="round"
+              strokeDasharray="2.8 3.4"
+              animate={
+                reducedMotion
+                  ? undefined
+                  : {
+                      strokeOpacity: [0.22, 0.45, 0.22],
+                      strokeDashoffset: [0, -8],
+                    }
+              }
+              transition={
+                reducedMotion
+                  ? undefined
+                  : {
+                      duration: 6 + index * 0.45,
+                      delay: index * 0.2,
+                      ease: "linear",
+                      repeat: Number.POSITIVE_INFINITY,
+                    }
+              }
+            />
+          );
+        })}
+      </svg>
+
       {floatingBits.map((item, index) => (
         <span
           key={`${item.emoji}-${index}`}
@@ -152,9 +278,39 @@ export default function Home() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const [activeTheme, setActiveTheme] = useState<ThemeKey>("midnight");
+  const [flippedCards, setFlippedCards] = useState<Record<number, boolean>>({});
+  const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const confettiBurstRef = useRef(0);
   const modalTitleId = useMemo(() => "note-modal-title", []);
   const currentTheme = themes[activeTheme];
+
+  const toggleCard = useCallback((index: number) => {
+    setFlippedCards((previous) => ({ ...previous, [index]: !previous[index] }));
+  }, []);
+
+  const launchConfetti = useCallback(() => {
+    if (prefersReducedMotion) return;
+
+    const burst = confettiBurstRef.current++;
+    const pieces = Array.from({ length: 30 }, (_, index) => ({
+      id: burst * 100 + index,
+      burst,
+      left: 10 + Math.random() * 80,
+      size: 6 + Math.random() * 8,
+      duration: 1300 + Math.random() * 700,
+      delay: Math.random() * 220,
+      drift: (Math.random() - 0.5) * 240,
+      rotate: 220 + Math.random() * 360,
+      color: confettiPalette[Math.floor(Math.random() * confettiPalette.length)],
+    }));
+
+    setConfettiPieces((previous) => [...previous, ...pieces]);
+
+    window.setTimeout(() => {
+      setConfettiPieces((previous) => previous.filter((piece) => piece.burst !== burst));
+    }, 2300);
+  }, [prefersReducedMotion]);
 
   const copyLink = useCallback(async () => {
     const shareText =
@@ -164,12 +320,13 @@ export default function Home() {
     try {
       await navigator.clipboard.writeText(shareText);
       setCopyStatus("copied");
+      launchConfetti();
     } catch {
       setCopyStatus("error");
     }
 
     window.setTimeout(() => setCopyStatus("idle"), 2500);
-  }, []);
+  }, [launchConfetti]);
 
   useEffect(() => {
     if (!selectedNote) return;
@@ -203,6 +360,27 @@ export default function Home() {
         transition={{ duration: prefersReducedMotion ? 0 : 0.6 }}
       />
       <FloatingBits reducedMotion={prefersReducedMotion} />
+
+      <div aria-hidden className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
+        {confettiPieces.map((piece) => (
+          <span
+            key={piece.id}
+            className="confetti-bit absolute -top-8 rounded-sm"
+            style={
+              {
+                left: `${piece.left}%`,
+                width: `${piece.size}px`,
+                height: `${Math.max(4, piece.size * 0.56)}px`,
+                backgroundColor: piece.color,
+                "--confetti-drift": `${piece.drift}px`,
+                "--confetti-rotate": `${piece.rotate}deg`,
+                "--confetti-duration": `${piece.duration}ms`,
+                animationDelay: `${piece.delay}ms`,
+              } as CSSProperties
+            }
+          />
+        ))}
+      </div>
 
       <div className="relative mx-auto max-w-6xl px-4 pb-14 pt-10 sm:px-6 lg:px-8 lg:pt-14">
         <motion.section
@@ -351,29 +529,73 @@ export default function Home() {
             transition={{ duration: prefersReducedMotion ? 0 : 0.4, delay: 0.18 }}
           >
             <h2 className="text-3xl font-bold sm:text-4xl">Wall of appreciation</h2>
-            <p className="mt-2 text-slate-300">Tap or click any card for a bigger view.</p>
+            <p className="mt-2 text-slate-300">Flip cards for quotes, then open a spotlight view.</p>
           </motion.div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {notes.map((note, index) => (
-              <motion.button
-                key={note.title}
-                type="button"
-                onClick={() => setSelectedNote(note)}
-                className={`group rounded-2xl border border-white/20 bg-white/10 p-5 text-left backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${currentTheme.focusRing}`}
-                whileHover={prefersReducedMotion ? undefined : { y: -6, scale: 1.01 }}
-                whileTap={prefersReducedMotion ? undefined : { scale: 0.99 }}
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 22, scale: 0.985 }}
-                animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: prefersReducedMotion ? 0 : 0.42, delay: 0.36 + index * 0.05 }}
-              >
-                <p className="text-3xl" aria-hidden>
-                  {note.emoji}
-                </p>
-                <h3 className={`mt-3 text-lg font-semibold text-white ${currentTheme.cardHover}`}>{note.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-200">{note.body}</p>
-              </motion.button>
-            ))}
+            {notes.map((note, index) => {
+              const isFlipped = Boolean(flippedCards[index]);
+
+              return (
+                <motion.article
+                  key={note.title}
+                  className="relative min-h-[248px] [perspective:1200px]"
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 22, scale: 0.985 }}
+                  animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: prefersReducedMotion ? 0 : 0.42, delay: 0.36 + index * 0.05 }}
+                  whileHover={prefersReducedMotion ? undefined : { y: -4, scale: 1.005 }}
+                >
+                  <div
+                    className={`relative h-full w-full [transform-style:preserve-3d] transition-transform ${
+                      prefersReducedMotion ? "duration-0" : "duration-500"
+                    } ${isFlipped ? "[transform:rotateY(180deg)]" : ""}`}
+                  >
+                    <div
+                      className={`absolute inset-0 flex flex-col rounded-2xl border border-white/20 bg-white/10 p-5 backdrop-blur [backface-visibility:hidden] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-slate-950 ${currentTheme.focusRing}`}
+                    >
+                      <p className="text-3xl" aria-hidden>
+                        {note.emoji}
+                      </p>
+                      <h3 className={`mt-3 text-lg font-semibold text-white ${currentTheme.cardHover}`}>{note.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-200">{note.body}</p>
+                      <button
+                        type="button"
+                        onClick={() => toggleCard(index)}
+                        className={`mt-auto self-start rounded-full border border-white/30 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${currentTheme.focusRing}`}
+                        aria-pressed={isFlipped}
+                      >
+                        Flip for quote
+                      </button>
+                    </div>
+
+                    <div
+                      className={`absolute inset-0 flex flex-col rounded-2xl border border-white/25 bg-slate-900/90 p-5 [backface-visibility:hidden] [transform:rotateY(180deg)] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-slate-950 ${currentTheme.focusRing}`}
+                    >
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Back Side</p>
+                      <p className={`mt-3 text-lg font-semibold ${currentTheme.accentHeading}`}>{note.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-100">{note.quote}</p>
+
+                      <div className="mt-auto flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleCard(index)}
+                          className={`rounded-full border border-white/30 px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${currentTheme.focusRing}`}
+                        >
+                          Back
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedNote(note)}
+                          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${currentTheme.accentButton} ${currentTheme.focusRing}`}
+                        >
+                          Open spotlight
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.article>
+              );
+            })}
           </div>
         </section>
 
