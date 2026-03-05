@@ -31,6 +31,15 @@ type ConfettiPiece = {
   color: string;
 };
 
+type PosterPalette = {
+  start: string;
+  end: string;
+  glowA: string;
+  glowB: string;
+  accent: string;
+  cardBg: string;
+};
+
 const notes: Note[] = [
   {
     emoji: "🫶",
@@ -137,6 +146,33 @@ const constellationPairs = [
 
 const confettiPalette = ["#f9a8d4", "#c4b5fd", "#67e8f9", "#fde68a", "#fca5a5", "#86efac"];
 
+const posterPalettes: Record<ThemeKey, PosterPalette> = {
+  midnight: {
+    start: "#020617",
+    end: "#312e81",
+    glowA: "rgba(236,72,153,0.34)",
+    glowB: "rgba(56,189,248,0.27)",
+    accent: "#f5d0fe",
+    cardBg: "rgba(15,23,42,0.84)",
+  },
+  sunrise: {
+    start: "#1c0904",
+    end: "#7c2d12",
+    glowA: "rgba(251,191,36,0.34)",
+    glowB: "rgba(244,114,182,0.27)",
+    accent: "#fde68a",
+    cardBg: "rgba(41,14,12,0.85)",
+  },
+  ocean: {
+    start: "#082f49",
+    end: "#0f172a",
+    glowA: "rgba(34,211,238,0.34)",
+    glowB: "rgba(59,130,246,0.27)",
+    accent: "#a5f3fc",
+    cardBg: "rgba(10,37,56,0.85)",
+  },
+};
+
 const themeOrder: ThemeKey[] = ["midnight", "sunrise", "ocean"];
 
 const themes = {
@@ -205,6 +241,73 @@ function usePrefersReducedMotion() {
   }, []);
 
   return prefersReducedMotion;
+}
+
+function sanitizeRecipientName(input: string | null): string | null {
+  if (!input) return null;
+
+  const cleaned = input
+    .trim()
+    .replace(/\s+/g, " ")
+    .split("")
+    .filter((char) => /[A-Za-z0-9]/.test(char) || char.charCodeAt(0) > 127 || " .'-".includes(char))
+    .join("");
+
+  if (!cleaned) return null;
+  return cleaned.slice(0, 42);
+}
+
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
+  const rounded = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rounded, y);
+  ctx.arcTo(x + width, y, x + width, y + height, rounded);
+  ctx.arcTo(x + width, y + height, x, y + height, rounded);
+  ctx.arcTo(x, y + height, x, y, rounded);
+  ctx.arcTo(x, y, x + width, y, rounded);
+  ctx.closePath();
+}
+
+function drawWrappedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  maxLines: number
+) {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+
+  if (currentLine) lines.push(currentLine);
+
+  const visible = lines.slice(0, maxLines);
+  visible.forEach((line, index) => {
+    const isLastVisible = index === visible.length - 1 && lines.length > visible.length;
+    const truncated = isLastVisible ? `${line}…` : line;
+    ctx.fillText(truncated, x, y + index * lineHeight);
+  });
+
+  return y + visible.length * lineHeight;
 }
 
 function FloatingBits({ reducedMotion }: { reducedMotion: boolean }) {
@@ -277,13 +380,17 @@ export default function Home() {
   const prefersReducedMotion = usePrefersReducedMotion();
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+  const [posterStatus, setPosterStatus] = useState<"idle" | "rendering" | "done" | "error">("idle");
   const [activeTheme, setActiveTheme] = useState<ThemeKey>("midnight");
+  const [recipientName, setRecipientName] = useState<string | null>(null);
   const [flippedCards, setFlippedCards] = useState<Record<number, boolean>>({});
   const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const confettiBurstRef = useRef(0);
+  const posterResetTimeoutRef = useRef<number | null>(null);
   const modalTitleId = useMemo(() => "note-modal-title", []);
   const currentTheme = themes[activeTheme];
+  const posterButtonText = posterStatus === "rendering" ? "Creating poster..." : "Download poster";
 
   const toggleCard = useCallback((index: number) => {
     setFlippedCards((previous) => ({ ...previous, [index]: !previous[index] }));
@@ -328,6 +435,131 @@ export default function Home() {
     window.setTimeout(() => setCopyStatus("idle"), 2500);
   }, [launchConfetti]);
 
+  const downloadPoster = useCallback(async () => {
+    if (posterStatus === "rendering") return;
+    setPosterStatus("rendering");
+
+    try {
+      const width = 1080;
+      const height = 1350;
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      if ("fonts" in document) {
+        await (document as Document & { fonts: FontFaceSet }).fonts.ready;
+      }
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context unavailable");
+
+      const palette = posterPalettes[activeTheme];
+
+      const gradient = ctx.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, palette.start);
+      gradient.addColorStop(1, palette.end);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      const glowA = ctx.createRadialGradient(140, 130, 20, 140, 130, 430);
+      glowA.addColorStop(0, palette.glowA);
+      glowA.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glowA;
+      ctx.fillRect(0, 0, width, height);
+
+      const glowB = ctx.createRadialGradient(860, 260, 10, 860, 260, 460);
+      glowB.addColorStop(0, palette.glowB);
+      glowB.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glowB;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.font = "600 34px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText("International Women's Day", 84, 94);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "700 94px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText("Happy Women's Day", 84, 218);
+      ctx.font = "700 86px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText("💜 ✨", 84, 308);
+
+      const dedication = recipientName
+        ? `A special dedication to ${recipientName} and every incredible woman out there.`
+        : "A little celebration page for all the amazing women out there.";
+      ctx.fillStyle = "rgba(226,232,240,0.98)";
+      ctx.font = "500 34px system-ui, -apple-system, Segoe UI, sans-serif";
+      drawWrappedText(ctx, dedication, 84, 372, 910, 48, 3);
+
+      drawRoundedRect(ctx, 72, 454, 936, 770, 30);
+      ctx.fillStyle = palette.cardBg;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.32)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = palette.accent;
+      ctx.font = "700 46px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText("Wall of appreciation", 108, 526);
+
+      const posterNotes = [notes[0], notes[3], notes[10]];
+      let cursorY = 590;
+      for (const note of posterNotes) {
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.font = "700 34px system-ui, -apple-system, Segoe UI, sans-serif";
+        ctx.fillText(`${note.emoji} ${note.title}`, 108, cursorY);
+
+        ctx.fillStyle = "rgba(226,232,240,0.95)";
+        ctx.font = "500 28px system-ui, -apple-system, Segoe UI, sans-serif";
+        cursorY = drawWrappedText(ctx, note.body, 108, cursorY + 42, 860, 40, 2) + 34;
+      }
+
+      ctx.fillStyle = "rgba(241,245,249,0.92)";
+      ctx.font = "600 24px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText("Made with ✨ + 💜", 108, 1164);
+
+      ctx.fillStyle = "rgba(148,163,184,0.95)";
+      ctx.font = "500 20px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText("Static celebration page • No data collection", 108, 1200);
+
+      const link = document.createElement("a");
+      link.href = canvas.toDataURL("image/png");
+      link.download = `womens-day-poster-${activeTheme}.png`;
+      link.click();
+      setPosterStatus("done");
+    } catch {
+      setPosterStatus("error");
+    }
+
+    if (posterResetTimeoutRef.current) {
+      window.clearTimeout(posterResetTimeoutRef.current);
+    }
+    posterResetTimeoutRef.current = window.setTimeout(() => setPosterStatus("idle"), 2600);
+  }, [activeTheme, posterStatus, recipientName]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const syncRecipient = () => {
+      const raw = new URLSearchParams(window.location.search).get("to");
+      setRecipientName(sanitizeRecipientName(raw));
+    };
+
+    syncRecipient();
+    window.addEventListener("popstate", syncRecipient);
+    return () => window.removeEventListener("popstate", syncRecipient);
+  }, []);
+
+  const statusMessage =
+    copyStatus === "copied"
+      ? "Copied to clipboard."
+      : copyStatus === "error"
+        ? "Clipboard access failed. Please copy manually."
+        : posterStatus === "done"
+          ? "Poster downloaded."
+          : posterStatus === "error"
+            ? "Could not generate poster."
+            : "Static page only, no forms and no data collected.";
+
   useEffect(() => {
     if (!selectedNote) return;
 
@@ -340,6 +572,14 @@ export default function Home() {
     window.addEventListener("keydown", onEscape);
     return () => window.removeEventListener("keydown", onEscape);
   }, [selectedNote]);
+
+  useEffect(() => {
+    return () => {
+      if (posterResetTimeoutRef.current) {
+        window.clearTimeout(posterResetTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
@@ -405,6 +645,16 @@ export default function Home() {
           >
             Happy Women&apos;s Day 💜
           </motion.h1>
+          {recipientName && (
+            <motion.p
+              className={`mt-3 text-base font-medium ${currentTheme.accentHeading} sm:text-lg`}
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
+              animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.42, delay: 0.2 }}
+            >
+              For {recipientName} - and every incredible woman out there.
+            </motion.p>
+          )}
           <motion.p
             className="mt-5 max-w-2xl text-base leading-7 text-slate-200 sm:text-lg"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
@@ -457,6 +707,14 @@ export default function Home() {
             >
               Copy share text + link
             </button>
+            <button
+              type="button"
+              onClick={downloadPoster}
+              disabled={posterStatus === "rendering"}
+              className={`rounded-full border border-white/35 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${currentTheme.focusRing}`}
+            >
+              {posterButtonText}
+            </button>
             <a
               href="#wall"
               className={`rounded-full border border-white/35 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${currentTheme.focusRing}`}
@@ -472,9 +730,7 @@ export default function Home() {
             animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
             transition={{ duration: prefersReducedMotion ? 0 : 0.4, delay: 0.42 }}
           >
-            {copyStatus === "copied" && "Copied to clipboard."}
-            {copyStatus === "error" && "Clipboard access failed. Please copy manually."}
-            {copyStatus === "idle" && "Static page only, no forms and no data collected."}
+            {statusMessage}
           </motion.p>
         </motion.section>
 
