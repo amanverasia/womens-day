@@ -34,33 +34,3 @@ body {
       rotate(var(--float-rotate, 6deg));
   }
 }
-
-.confetti-bit {
-  opacity: 0;
-  transform: translate3d(0, 0, 0) rotate(0deg) scale(0.9);
-  will-change: transform, opacity;
-  animation-name: confetti-fall;
-  animation-duration: var(--confetti-duration, 2800ms);
-  animation-timing-function: cubic-bezier(0.17, 0.79, 0.28, 0.99);
-  animation-fill-mode: forwards;
-}
-
-@keyframes confetti-fall {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.9);
-  }
-  10% {
-    opacity: 1;
-  }
-  45% {
-    opacity: 0.95;
-    transform: translate3d(calc(var(--confetti-drift, 0px) * 0.38), calc(var(--confetti-travel, 52vh) * 0.55), 0)
-      rotate(calc(var(--confetti-rotate, 280deg) * 0.52));
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(var(--confetti-drift, 0px), var(--confetti-travel, 52vh), 0)
-      rotate(var(--confetti-rotate, 280deg));
-  }
-}

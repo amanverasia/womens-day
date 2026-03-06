@@ -19,19 +19,6 @@ type TimelineStep = {
   body: string;
 };
 
-type ConfettiPiece = {
-  id: number;
-  burst: number;
-  left: number;
-  size: number;
-  duration: number;
-  delay: number;
-  drift: number;
-  travel: number;
-  rotate: number;
-  color: string;
-};
-
 type PosterPalette = {
   start: string;
   end: string;
@@ -175,6 +162,17 @@ const posterPalettes: Record<ThemeKey, PosterPalette> = {
 };
 
 const themeOrder: ThemeKey[] = ["midnight", "sunrise", "ocean"];
+
+type ConfettiFn = typeof import("canvas-confetti");
+
+const focusableSelector = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
 
 const themes = {
   midnight: {
@@ -416,9 +414,10 @@ export default function Home() {
   const [recipientName, setRecipientName] = useState<string | null>(null);
   const [recipientInput, setRecipientInput] = useState("");
   const [flippedCards, setFlippedCards] = useState<Record<number, boolean>>({});
-  const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const confettiBurstRef = useRef(0);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const confettiRef = useRef<Promise<ConfettiFn> | null>(null);
   const posterResetTimeoutRef = useRef<number | null>(null);
   const modalTitleId = useMemo(() => "note-modal-title", []);
   const currentTheme = themes[activeTheme];
@@ -442,26 +441,44 @@ export default function Home() {
   const launchConfetti = useCallback(() => {
     if (prefersReducedMotion) return;
 
-    const burst = confettiBurstRef.current++;
-    const pieces = Array.from({ length: 32 }, (_, index) => ({
-      id: burst * 100 + index,
-      burst,
-      left: 10 + Math.random() * 80,
-      size: 5 + Math.random() * 7,
-      duration: 2400 + Math.random() * 1300,
-      delay: Math.random() * 260,
-      drift: (Math.random() - 0.5) * 180,
-      travel: 44 + Math.random() * 20,
-      rotate: 260 + Math.random() * 360,
-      color: confettiPalette[Math.floor(Math.random() * confettiPalette.length)],
-    }));
+    let confettiPromise = confettiRef.current;
+    if (!confettiRef.current) {
+      confettiPromise = import("canvas-confetti").then((module): ConfettiFn =>
+        "default" in module ? module.default : module
+      );
+      confettiRef.current = confettiPromise;
+    }
 
-    setConfettiPieces((previous) => [...previous, ...pieces]);
+    if (!confettiPromise) return;
 
-    const cleanupAfter = Math.max(...pieces.map((piece) => piece.duration + piece.delay)) + 300;
-    window.setTimeout(() => {
-      setConfettiPieces((previous) => previous.filter((piece) => piece.burst !== burst));
-    }, cleanupAfter);
+    void confettiPromise.then((confetti) => {
+      const showerDuration = 900;
+      const endAt = window.performance.now() + showerDuration;
+
+      const frame = () => {
+        confetti({
+          particleCount: 5,
+          startVelocity: 18,
+          gravity: 0.95,
+          ticks: 220,
+          spread: 52,
+          scalar: 0.92,
+          drift: (Math.random() - 0.5) * 0.35,
+          origin: {
+            x: 0.12 + Math.random() * 0.76,
+            y: -0.12,
+          },
+          colors: confettiPalette,
+          disableForReducedMotion: true,
+        });
+
+        if (window.performance.now() < endAt) {
+          window.requestAnimationFrame(frame);
+        }
+      };
+
+      frame();
+    });
   }, [prefersReducedMotion]);
 
   const copyLink = useCallback(async () => {
@@ -620,14 +637,59 @@ export default function Home() {
   useEffect(() => {
     if (!selectedNote) return;
 
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const modalElement = modalRef.current;
+
+    const getFocusableElements = () =>
+      Array.from(modalElement?.querySelectorAll<HTMLElement>(focusableSelector) ?? []).filter(
+        (element) => !element.hasAttribute("disabled")
+      );
+
     closeButtonRef.current?.focus();
 
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSelectedNote(null);
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedNote(null);
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusableElements = getFocusableElements();
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        modalElement?.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement as HTMLElement | null;
+      const focusOutsideModal = activeElement ? !modalElement?.contains(activeElement) : true;
+
+      if (event.shiftKey) {
+        if (focusOutsideModal || activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus();
+        }
+        return;
+      }
+
+      if (focusOutsideModal || activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
     };
 
-    window.addEventListener("keydown", onEscape);
-    return () => window.removeEventListener("keydown", onEscape);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousBodyOverflow;
+      previousFocusRef.current?.focus();
+    };
   }, [selectedNote]);
 
   useEffect(() => {
@@ -658,29 +720,10 @@ export default function Home() {
       />
       <FloatingBits reducedMotion={prefersReducedMotion} />
 
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-30 overflow-hidden">
-        {confettiPieces.map((piece) => (
-          <span
-            key={piece.id}
-            className="confetti-bit absolute -top-6 rounded-sm"
-            style={
-              {
-                left: `${piece.left}%`,
-                width: `${piece.size}px`,
-                height: `${Math.max(4, piece.size * 0.56)}px`,
-                backgroundColor: piece.color,
-                "--confetti-drift": `${piece.drift}px`,
-                "--confetti-travel": `${piece.travel}vh`,
-                "--confetti-rotate": `${piece.rotate}deg`,
-                "--confetti-duration": `${piece.duration}ms`,
-                animationDelay: `${piece.delay}ms`,
-              } as CSSProperties
-            }
-          />
-        ))}
-      </div>
-
-      <div className="relative mx-auto max-w-6xl px-4 pb-14 pt-10 sm:px-6 lg:px-8 lg:pt-14">
+      <div
+        aria-hidden={selectedNote ? true : undefined}
+        className="relative mx-auto max-w-6xl px-4 pb-14 pt-10 sm:px-6 lg:px-8 lg:pt-14"
+      >
         <motion.section
           className={`rounded-3xl border border-white/15 bg-white/10 p-6 shadow-2xl backdrop-blur-xl sm:p-10 ${currentTheme.shadowTone}`}
           initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
@@ -958,9 +1001,11 @@ export default function Home() {
             onClick={() => setSelectedNote(null)}
           >
             <motion.div
+              ref={modalRef}
               role="dialog"
               aria-modal="true"
               aria-labelledby={modalTitleId}
+              tabIndex={-1}
               className="w-full max-w-lg rounded-3xl border border-white/20 bg-slate-900/95 p-6 shadow-2xl"
               initial={prefersReducedMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
               animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
