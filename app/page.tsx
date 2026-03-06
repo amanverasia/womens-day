@@ -27,7 +27,7 @@ type ConfettiPiece = {
   duration: number;
   delay: number;
   drift: number;
-  rise: number;
+  travel: number;
   rotate: number;
   color: string;
 };
@@ -258,6 +258,36 @@ function sanitizeRecipientName(input: string | null): string | null {
   return cleaned.slice(0, 42);
 }
 
+async function writeToClipboard(value: string) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  if (typeof document === "undefined") {
+    throw new Error("Clipboard unavailable");
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+  textarea.style.inset = "0";
+
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  document.body.removeChild(textarea);
+
+  if (!copied) {
+    throw new Error("Clipboard unavailable");
+  }
+}
+
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -421,7 +451,7 @@ export default function Home() {
       duration: 2400 + Math.random() * 1300,
       delay: Math.random() * 260,
       drift: (Math.random() - 0.5) * 180,
-      rise: 72 + Math.random() * 28,
+      travel: 44 + Math.random() * 20,
       rotate: 260 + Math.random() * 360,
       color: confettiPalette[Math.floor(Math.random() * confettiPalette.length)],
     }));
@@ -448,7 +478,7 @@ export default function Home() {
         : "Happy International Women’s Day 💜✨ A little celebration page for all the amazing women out there.";
 
     try {
-      await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl.toString()}`);
+      await writeToClipboard(`${shareText}\n\n${shareUrl.toString()}`);
       setCopyStatus("copied");
       launchConfetti();
     } catch {
@@ -628,11 +658,11 @@ export default function Home() {
       />
       <FloatingBits reducedMotion={prefersReducedMotion} />
 
-      <div aria-hidden className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-30 overflow-hidden">
         {confettiPieces.map((piece) => (
           <span
             key={piece.id}
-            className="confetti-bit absolute -bottom-6 rounded-sm"
+            className="confetti-bit absolute -top-6 rounded-sm"
             style={
               {
                 left: `${piece.left}%`,
@@ -640,7 +670,7 @@ export default function Home() {
                 height: `${Math.max(4, piece.size * 0.56)}px`,
                 backgroundColor: piece.color,
                 "--confetti-drift": `${piece.drift}px`,
-                "--confetti-rise": `${piece.rise}vh`,
+                "--confetti-travel": `${piece.travel}vh`,
                 "--confetti-rotate": `${piece.rotate}deg`,
                 "--confetti-duration": `${piece.duration}ms`,
                 animationDelay: `${piece.delay}ms`,
