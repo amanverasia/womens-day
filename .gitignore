@@ -23,6 +23,8 @@
 # misc
 .DS_Store
 *.pem
+.chrome-bin/
+.lighthouse/
 
 # debug
 npm-debug.log*
