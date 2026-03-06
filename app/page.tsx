@@ -865,7 +865,8 @@ export default function Home() {
         </motion.section>
 
         <section className="relative mt-10 rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-xl sm:p-8">
-          <p className={`text-xs uppercase tracking-[0.25em] ${currentTheme.accentText}`}>Momentum timeline</p>
+          <p className={`text-xs uppercase tracking-[0.25em] ${currentTheme.accentText}`}>Story arc</p>
+          <h2 className="mt-2 text-2xl font-bold text-white sm:text-3xl">Momentum timeline</h2>
           <div className="relative mt-5">
             <div aria-hidden className="pointer-events-none absolute left-[15%] right-[15%] top-6 hidden h-px bg-white/20 md:block" />
             <div className="grid gap-4 md:grid-cols-3">

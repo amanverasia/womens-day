@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local audit artifacts and downloaded browser binaries.
+    ".lighthouse/**",
+    ".chrome-bin/**",
   ]),
 ]);
 
